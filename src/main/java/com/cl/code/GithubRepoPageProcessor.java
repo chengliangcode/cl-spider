@@ -1,9 +1,10 @@
 package com.cl.code;
 
+import com.cl.code.util.IdGeneratorUtil;
 import us.codecraft.webmagic.Page;
 import us.codecraft.webmagic.Site;
-import us.codecraft.webmagic.Spider;
 import us.codecraft.webmagic.processor.PageProcessor;
+import us.codecraft.webmagic.selector.Selectable;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -12,15 +13,16 @@ public class GithubRepoPageProcessor implements PageProcessor {
 
     public static String web = "https://www.yuleba.org";
 
-    private Site site = Site.me().setRetryTimes(3).setSleepTime(1000).setTimeOut(10000);
-
     @Override
     public void process(Page page) {
-        List<String> all = page.getHtml().css("p").css("img", "src").all();
-        if (!all.isEmpty()) {
-            for (String s : all) {
-                page.putField(s, s);
-            }
+        List<Selectable> lis = page.getHtml().xpath("//div[@class='b_img']").css("li").nodes();
+        for (Selectable selectable : lis) {
+            String href = selectable.css("a", "href").get();
+            String img = selectable.css("img", "src").get();
+            String alt = selectable.css("img", "alt").get();
+            String time = selectable.regex("\\d{4}-\\d{1,2}-\\d{1,2} \\d{1,2}:\\d{1,2}:\\d{1,2}").get();
+            href = web + href;
+            page.putField(href, new ImageGroupInfo(IdGeneratorUtil.generateId(),href, img, alt, time));
         }
         List<String> collect = page.getHtml().css("div.paging").css("a", "href").all().stream().distinct().filter(item -> !item.isEmpty()).collect(Collectors.toList());
         page.addTargetRequests(collect);
@@ -28,11 +30,7 @@ public class GithubRepoPageProcessor implements PageProcessor {
 
     @Override
     public Site getSite() {
-        return site;
-    }
-
-    public static void main(String[] args) {
-        Spider.create(new GithubRepoPageProcessor()).addUrl(web + "/a/211-5048-0.html").addPipeline(new MyPipeline()).thread(5).run();
+        return Site.me().setRetryTimes(3).setSleepTime(1000).setTimeOut(10000);
     }
 
 }
